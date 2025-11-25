@@ -12,12 +12,9 @@ export default function NetworkPage() {
 
     useEffect(() => {
         // Load all data to build the full graph
-        const opportunities = store.getOpportunities()
-        const assets = store.getSupplyAssets()
-        const allLinks = store.links // We need to expose links from store or add a getter
-
-        // Since store.links is not exposed directly via a getter that returns all, let's add one or just access it if public.
-        // Looking at store.ts, 'links' property is public.
+        const opportunities = store.getOpportunities() || []
+        const assets = store.getSupplyAssets() || []
+        const allLinks = store.getAllLinks() || []
 
         const graphNodes: Node[] = []
         const graphEdges: Edge[] = []
