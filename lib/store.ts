@@ -1,6 +1,6 @@
 import { Opportunity, SupplyAsset, Link, DashboardMetrics } from './types';
 
-// Mock Data
+// Mock Data (used as initial seed data)
 export const mockOpportunities: Opportunity[] = [
     {
         id: 'opp-001',
@@ -52,12 +52,99 @@ export const mockLinks: Link[] = [
     { sourceId: 'opp-001', targetId: 'dataset-001', type: 'uses_data_from' },
 ];
 
-// Simple Store (In-memory for prototype)
-class Store {
-    opportunities: Opportunity[] = [...mockOpportunities];
-    supplyAssets: SupplyAsset[] = [...mockSupplyAssets];
-    links: Link[] = [...mockLinks];
+// LocalStorage keys
+const STORAGE_KEYS = {
+    OPPORTUNITIES: 'datacrm_opportunities',
+    SUPPLY_ASSETS: 'datacrm_supply_assets',
+    LINKS: 'datacrm_links',
+};
 
+// Helper to check if we're in browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Store with LocalStorage persistence
+class Store {
+    private opportunities: Opportunity[] = [];
+    private supplyAssets: SupplyAsset[] = [];
+    private links: Link[] = [];
+    private listeners: Set<() => void> = new Set();
+
+    constructor() {
+        if (isBrowser) {
+            this.loadFromStorage();
+        } else {
+            // Server-side: use mock data
+            this.opportunities = [...mockOpportunities];
+            this.supplyAssets = [...mockSupplyAssets];
+            this.links = [...mockLinks];
+        }
+    }
+
+    // Load data from localStorage or use mock data as fallback
+    private loadFromStorage() {
+        try {
+            const storedOpportunities = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
+            const storedAssets = localStorage.getItem(STORAGE_KEYS.SUPPLY_ASSETS);
+            const storedLinks = localStorage.getItem(STORAGE_KEYS.LINKS);
+
+            this.opportunities = storedOpportunities
+                ? JSON.parse(storedOpportunities)
+                : [...mockOpportunities];
+
+            this.supplyAssets = storedAssets
+                ? JSON.parse(storedAssets)
+                : [...mockSupplyAssets];
+
+            this.links = storedLinks
+                ? JSON.parse(storedLinks)
+                : [...mockLinks];
+
+            // If storage is empty, save the mock data
+            if (!storedOpportunities) this.saveOpportunities();
+            if (!storedAssets) this.saveSupplyAssets();
+            if (!storedLinks) this.saveLinks();
+        } catch (error) {
+            console.error('Error loading from storage:', error);
+            // Fallback to mock data
+            this.opportunities = [...mockOpportunities];
+            this.supplyAssets = [...mockSupplyAssets];
+            this.links = [...mockLinks];
+        }
+    }
+
+    // Save methods
+    private saveOpportunities() {
+        if (isBrowser) {
+            localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(this.opportunities));
+            this.notifyListeners();
+        }
+    }
+
+    private saveSupplyAssets() {
+        if (isBrowser) {
+            localStorage.setItem(STORAGE_KEYS.SUPPLY_ASSETS, JSON.stringify(this.supplyAssets));
+            this.notifyListeners();
+        }
+    }
+
+    private saveLinks() {
+        if (isBrowser) {
+            localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(this.links));
+            this.notifyListeners();
+        }
+    }
+
+    // Subscribe to changes
+    subscribe(listener: () => void) {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+
+    private notifyListeners() {
+        this.listeners.forEach(listener => listener());
+    }
+
+    // Opportunities
     getOpportunities() {
         return this.opportunities;
     }
@@ -68,20 +155,69 @@ class Store {
 
     addOpportunity(opp: Opportunity) {
         this.opportunities.push(opp);
+        this.saveOpportunities();
     }
 
+    updateOpportunity(id: string, updates: Partial<Opportunity>) {
+        const index = this.opportunities.findIndex(o => o.id === id);
+        if (index !== -1) {
+            this.opportunities[index] = { ...this.opportunities[index], ...updates };
+            this.saveOpportunities();
+        }
+    }
+
+    deleteOpportunity(id: string) {
+        this.opportunities = this.opportunities.filter(o => o.id !== id);
+        this.saveOpportunities();
+    }
+
+    // Supply Assets
     getSupplyAssets() {
         return this.supplyAssets;
     }
 
+    getSupplyAsset(id: string) {
+        return this.supplyAssets.find(a => a.id === id);
+    }
+
+    addSupplyAsset(asset: SupplyAsset) {
+        this.supplyAssets.push(asset);
+        this.saveSupplyAssets();
+    }
+
+    updateSupplyAsset(id: string, updates: Partial<SupplyAsset>) {
+        const index = this.supplyAssets.findIndex(a => a.id === id);
+        if (index !== -1) {
+            this.supplyAssets[index] = { ...this.supplyAssets[index], ...updates };
+            this.saveSupplyAssets();
+        }
+    }
+
+    deleteSupplyAsset(id: string) {
+        this.supplyAssets = this.supplyAssets.filter(a => a.id !== id);
+        this.saveSupplyAssets();
+    }
+
+    // Links
     getLinks(sourceId: string) {
         return this.links.filter(l => l.sourceId === sourceId);
     }
 
-    addLink(link: Link) {
-        this.links.push(link);
+    getAllLinks() {
+        return this.links;
     }
 
+    addLink(link: Link) {
+        this.links.push(link);
+        this.saveLinks();
+    }
+
+    deleteLink(sourceId: string, targetId: string) {
+        this.links = this.links.filter(l => !(l.sourceId === sourceId && l.targetId === targetId));
+        this.saveLinks();
+    }
+
+    // Metrics
     getMetrics(): DashboardMetrics {
         const totalTAM = this.opportunities.reduce((sum, opp) => sum + opp.estimatedValue, 0);
         const realizedValue = this.opportunities
@@ -94,6 +230,16 @@ class Store {
             activeOpportunities: this.opportunities.filter(o => o.status === 'Active').length,
             closedOpportunities: this.opportunities.filter(o => o.status === 'Delivered').length,
         };
+    }
+
+    // Reset to mock data (useful for testing)
+    resetToMockData() {
+        this.opportunities = [...mockOpportunities];
+        this.supplyAssets = [...mockSupplyAssets];
+        this.links = [...mockLinks];
+        this.saveOpportunities();
+        this.saveSupplyAssets();
+        this.saveLinks();
     }
 }
 

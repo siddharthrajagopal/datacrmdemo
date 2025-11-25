@@ -35,17 +35,8 @@ export default function SupplyPage() {
             description: newAsset.description || ""
         }
 
-        // We need to add a method to store for adding assets, or just push to the array if it's a simple mock.
-        // store.ts doesn't have addSupplyAsset. I should add it or just push to the array if I can access it.
-        // I'll check store.ts again. It has addOpportunity but not addSupplyAsset.
-        // I will assume I can add it or I will modify store.ts.
-        // For now, I'll try to modify store.ts first to be safe, but since I can't do it in parallel easily without context switch,
-        // I'll assume I can just push to the array if it's public, or I'll add the method in a separate step if needed.
-        // Wait, I can't modify store.ts in this tool call.
-        // I'll just push to the array directly if I can't find the method, but `store.supplyAssets` is public.
-        store.supplyAssets.push(asset)
-
-        setAssets([...store.getSupplyAssets()])
+        store.addSupplyAsset(asset)
+        setAssets(store.getSupplyAssets())
         setIsModalOpen(false)
         setNewAsset({ name: "", type: "Business Term", description: "" })
     }
@@ -59,8 +50,8 @@ export default function SupplyPage() {
         {
             header: "Type", accessorKey: "type" as keyof SupplyAsset, cell: (item: SupplyAsset) => (
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'Policy' ? 'bg-red-100 text-red-800' :
-                    item.type === 'Business Term' ? 'bg-orange-100 text-orange-800' :
-                        'bg-blue-100 text-blue-800'
+                        item.type === 'Business Term' ? 'bg-orange-100 text-orange-800' :
+                            'bg-blue-100 text-blue-800'
                     }`}>
                     {item.type}
                 </span>
