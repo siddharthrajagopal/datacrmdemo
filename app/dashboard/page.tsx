@@ -7,8 +7,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, Users, Database, Zap } from "lucide-react"
 
 export default function DashboardPage() {
-    const opportunities = store.getOpportunities()
-    const supplyAssets = store.getSupplyAssets()
+    const opportunities = store.getOpportunities() || []
+    const supplyAssets = store.getSupplyAssets() || []
 
     // Business Unit Demand Analysis
     const buDemand = opportunities.reduce((acc, opp) => {
